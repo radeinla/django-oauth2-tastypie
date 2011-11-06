@@ -5,30 +5,39 @@ import oauth2
 from django.http import HttpResponse
 from django.contrib.auth.models import AnonymousUser
 
-from piston.models import Consumer
-from piston.oauth import OAuthError
+from tastypie.authentication import Authentication
+from models import OAuthConsumer
 
 """
-This is a simple 2-legged OAuth connector for django piston.
+This is a simple 2-legged OAuth authentication model for tastypie.
+
+Copied nearly verbatim from gregbayer's piston example 
+ - https://github.com/gregbayer/django-piston-two-legged-oauth
+
 Dependencies: 
- - django piston: https://bitbucket.org/jespern/django-piston
  - python-oauth2: https://github.com/simplegeo/python-oauth2
 Adapted from example:  
  - http://philipsoutham.com/post/2172924723/two-legged-oauth-in-python
 """
 
+# stolen from piston
+class OAuthError(RuntimeError):
+    """Generic exception class."""
+    def __init__(self, message='OAuth error occured.'):
+        self.message = message
 
-class TwoLeggedOAuthAuthentication(object):
+
+class TwoLeggedOAuthAuthentication(Authentication):
     """
     Two Legged OAuth authenticator. 
-    
+
     This Authentication method checks for a provided HTTP_AUTHORIZATION
     and looks up to see if this is a valid OAuth Consumer
     """
     def __init__(self, realm='API'):
         self.realm = realm
 
-    def is_authenticated(self, request):
+    def is_authenticated(self, request, **kwargs):
         """
         Verify 2-legged oauth request. Parameters accepted as
         values in "Authorization" header, or as a GET request
@@ -77,36 +86,36 @@ def initialize_oauth_server_request(request):
     """
     OAuth initialization.
     """
-    
+
     # Since 'Authorization' header comes through as 'HTTP_AUTHORIZATION', convert it back
     auth_header = {}
     if 'HTTP_AUTHORIZATION' in request.META:
         auth_header = {'Authorization':request.META.get('HTTP_AUTHORIZATION')}
-    
+
     absolute_uri = request.build_absolute_uri()
     url = absolute_uri
     if absolute_uri.find('?') != -1:
         url = absolute_uri[:absolute_uri.find('?')]
-        
+
     oauth_request = oauth2.Request.from_request(
             request.method, url, headers=auth_header, 
             parameters=dict(request.REQUEST.items()))
-        
+
     if oauth_request:
         oauth_server = oauth2.Server(signature_methods={
             # Supported signature methods
             'HMAC-SHA1': oauth2.SignatureMethod_HMAC_SHA1()
-        })
+            })
 
     else:
         oauth_server = None
-        
+
     return oauth_server, oauth_request
 
 
 def get_oauth_consumer_key_from_header(auth_header_value):
     key = None
-    
+
     # Process Auth Header
     # Check that the authorization header is OAuth.
     if not auth_header_value:
@@ -119,8 +128,8 @@ def get_oauth_consumer_key_from_header(auth_header_value):
             if 'oauth_consumer_key' in header_params:
                 key = header_params['oauth_consumer_key']
         except:
-            raise Error('Unable to parse OAuth parameters from '
-                'Authorization header.')
+            raise OAuthError('Unable to parse OAuth parameters from '
+                    'Authorization header.')
     return key
 
 
@@ -134,8 +143,8 @@ def get_consumer(oauth_consumer_key):
 def lookup_consumer(key):
     logging.info("lookup_consumer() key: " + repr(key))
     try:
-        consumer = Consumer.objects.get(key=key)
+        consumer = OAuthConsumer.objects.get(key=key, active=True)
         return consumer
-    except Consumer.DoesNotExist:
+    except OAuthConsumer.DoesNotExist:
         return None
 

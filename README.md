@@ -1,10 +1,13 @@
 # About
 
-django-piston-two-legged-oauth is a simple 2-legged OAuth connector for Django Piston.
+django-tastypie-two-legged-oauth is a simple 2-legged OAuth authentication model for Django Tastypie.
 
+This nearly an exact copy of
+[gregbayer/django-piston-two-legged-oauth](https://github.com/gregbayer/django-piston-two-legged-oauth),
+an OAuth connector for django-piston.
 
 # Dependencies: 
-* [django piston](https://bitbucket.org/jespern/django-piston)
+* [django tastypie](https://github.com/toastdriven/django-tastypie)
 * [python-oauth2](https://github.com/simplegeo/python-oauth2)
 
 
@@ -13,29 +16,22 @@ django-piston-two-legged-oauth is a simple 2-legged OAuth connector for Django P
 
 
 # Related discussions:
-* [django piston 2-legged OAuth authentication discussion](http://groups.google.com/group/django-piston/browse_thread/thread/7e6cff72a75013ce)
 * [Beginner’s Guide to OAuth – Part II : Protocol Workflow](http://hueniverse.com/2007/10/beginners-guide-to-oauth-part-ii-protocol-workflow/)
 
 # Example
 
-\# urls.py
+\# resources.py
 
-    from api.authentication import TwoLeggedOAuthAuthentication
-    from api.handlers import DoSomethingHandler
+	from tastypie.resources import ModelResource
+	from tastypie.authorization import DjangoAuthorization
+	from django.contrib.auth.models import User
+	from authentication import TwoLeggedOAuthAuthentication
 
-    two_legged_oauth = TwoLeggedOAuthAuthentication(realm='API')
-
-    class CsrfExemptResource( Resource ):
-        def __init__( self, handler, authentication = None ):
-            super( CsrfExemptResource, self ).__init__( handler, authentication )
-            self.csrf_exempt = getattr( self.handler, 'csrf_exempt', True )
-
-    def TwoLeggedOAuthProtectedResource(handler):
-        return CsrfExemptResource(handler=handler, authentication=two_legged_oauth)
-
-    do_something = TwoLeggedOAuthProtectedResource( DoSomethingHandler )
-
-    urlpatterns = patterns('',
-        url( r'^do_something', do_something, name='do_something'),
-    )
+	class UserResource(ModelResource):
+    	class Meta:
+       		queryset = User.objects.all()
+        	resource_name = 'users'
+        	excludes = ['email', 'password', 'is_active', 'is_staff', 'is_superuser']
+        	authorization = DjangoAuthorization()
+        	authentication = TwoLeggedOAuthAuthentication()
 
