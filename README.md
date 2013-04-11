@@ -1,6 +1,6 @@
 # About
 
-django-oauth2-tastypie is a simple OAuth authentication model for Django Tastypie.
+django-oauth2-tastypie is a simple OAuth 2.0 authentication model for Django Tastypie that uses django-oauth2-provider.
 
 This nearly an exact copy of
 [/amrox/django-tastypie-two-legged-oauth](https://github.com/amrox/django-tastypie-two-legged-oauth), an OAuth2 (but not OAuth 2.0 spec!) connector for django-tastypie.
