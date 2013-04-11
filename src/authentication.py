@@ -1,12 +1,13 @@
 import logging
 
-import oauth2
-
 from django.http import HttpResponse
 from django.contrib.auth.models import AnonymousUser
+from django.utils import timezone
 
 from tastypie.authentication import Authentication
-from models import OAuthConsumer
+
+import provider.oauth2
+from provider.oauth2.models import AccessToken
 
 """
 This is a simple 2-legged OAuth authentication model for tastypie.
@@ -45,26 +46,30 @@ class TwoLeggedOAuthAuthentication(Authentication):
         """
         logging.info("TwoLeggedOAuthAuthentication")
 
-        oauth_server, oauth_request = initialize_oauth_server_request(request)
+        """
+        First, attempt to find the key in multiple ways:
+        as a GET parameter
+        as a POST parameter
+        or as a Authorization header
+        """
         try:
             key = request.GET.get('oauth_consumer_key')
             if not key:
                 key = request.POST.get('oauth_consumer_key')
             if not key:
                 auth_header_value = request.META.get('HTTP_AUTHORIZATION')
-                key = get_oauth_consumer_key_from_header(auth_header_value)
+                key = auth_header_value.split(' ')[1]
             if not key:
                 logging.error('TwoLeggedOAuthAuthentication. No consumer_key found.')
                 return None
-            # Raises exception if it doesn't pass 
-            oauth_server.verify_request(oauth_request, get_consumer(key), None)
+            """
+            If verify_access_token() does not pass, it will raise an error
+            """
+            verify_access_token(key)
+
             # If OAuth authentication is successful, set oauth_consumer_key on request in case we need it later 
             request.META['oauth_consumer_key'] = key
             return True
-        except oauth2.Error, e:
-            logging.exception("Error in TwoLeggedOAuthAuthentication.")
-            request.user = AnonymousUser()
-            return False
         except KeyError, e:
             logging.exception("Error in TwoLeggedOAuthAuthentication.")
             request.user = AnonymousUser()
@@ -72,79 +77,17 @@ class TwoLeggedOAuthAuthentication(Authentication):
         except Exception, e:
             logging.exception("Error in TwoLeggedOAuthAuthentication.")
             return False
-
         return True
 
-    def challenge(self):
-        resp = HttpResponse("OAuth Authorization Required")
-        resp['WWW-Authenticate'] = "Token Based Authentication"
-        resp.status_code = 401
-        return resp
-
-
-def initialize_oauth_server_request(request):
-    """
-    OAuth initialization.
-    """
-
-    # Since 'Authorization' header comes through as 'HTTP_AUTHORIZATION', convert it back
-    auth_header = {}
-    if 'HTTP_AUTHORIZATION' in request.META:
-        auth_header = {'Authorization':request.META.get('HTTP_AUTHORIZATION')}
-
-    absolute_uri = request.build_absolute_uri()
-    url = absolute_uri
-    if absolute_uri.find('?') != -1:
-        url = absolute_uri[:absolute_uri.find('?')]
-
-    oauth_request = oauth2.Request.from_request(
-            request.method, url, headers=auth_header, 
-            parameters=dict(request.REQUEST.items()))
-
-    if oauth_request:
-        oauth_server = oauth2.Server(signature_methods={
-            # Supported signature methods
-            'HMAC-SHA1': oauth2.SignatureMethod_HMAC_SHA1()
-            })
-
-    else:
-        oauth_server = None
-
-    return oauth_server, oauth_request
-
-
-def get_oauth_consumer_key_from_header(auth_header_value):
-    key = None
-
-    # Process Auth Header
-    # Check that the authorization header is OAuth.
-    if not auth_header_value:
-        return None
-    if auth_header_value[:6] == 'OAuth ':
-        auth_header = auth_header_value[6:]
-        try:
-            # Get the parameters from the header.
-            header_params = oauth2.Request._split_header(auth_header)
-            if 'oauth_consumer_key' in header_params:
-                key = header_params['oauth_consumer_key']
-        except:
-            raise OAuthError('Unable to parse OAuth parameters from '
-                    'Authorization header.')
-    return key
-
-
-def get_consumer(oauth_consumer_key):
-    consumer = lookup_consumer(oauth_consumer_key)
-    if not consumer:
-        raise OAuthError('Invalid consumer.')
-    return consumer
-
-
-def lookup_consumer(key):
-    logging.info("lookup_consumer() key: " + repr(key))
+def verify_access_token(key):
+    # Check if key is in AccessToken key
     try:
-        consumer = OAuthConsumer.objects.get(key=key, active=True)
-        return consumer
-    except OAuthConsumer.DoesNotExist:
-        return None
+        token = AccessToken.objects.get(token=key)
 
+        # Check if token has expired
+        if token.expires < timezone.now():
+            raise OAuthError('AccessToken has expired.')
+    except AccessToken.DoesNotExist, e:
+        raise OAuthError("AccessToken not found at all.")
+
+    logging.info('Valid access ')
