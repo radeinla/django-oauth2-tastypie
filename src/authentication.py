@@ -1,7 +1,7 @@
 import logging
 
 from django.http import HttpResponse
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, User
 from django.utils import timezone
 
 from tastypie.authentication import Authentication
@@ -10,15 +10,16 @@ import provider.oauth2
 from provider.oauth2.models import AccessToken
 
 """
-This is a simple 2-legged OAuth authentication model for tastypie.
+This is a simple OAuth 2.0 authentication model for tastypie
 
-Copied nearly verbatim from gregbayer's piston example 
- - https://github.com/gregbayer/django-piston-two-legged-oauth
+Copied nearly verbatim from amrox's example 
+ - https://github.com/amrox/django-tastypie-two-legged-oauth
 
 Dependencies: 
- - python-oauth2: https://github.com/simplegeo/python-oauth2
-Adapted from example:  
- - http://philipsoutham.com/post/2172924723/two-legged-oauth-in-python
+ - django-oauth2-provider: https://github.com/caffeinehit/django-oauth2-provider
+
+Example:
+ - http://ianalexandr.com
 """
 
 # stolen from piston
@@ -28,12 +29,12 @@ class OAuthError(RuntimeError):
         self.message = message
 
 
-class TwoLeggedOAuthAuthentication(Authentication):
+class OAuth20Authentication(Authentication):
     """
-    Two Legged OAuth authenticator. 
+    OAuth authenticator. 
 
     This Authentication method checks for a provided HTTP_AUTHORIZATION
-    and looks up to see if this is a valid OAuth Consumer
+    and looks up to see if this is a valid OAuth Access Token
     """
     def __init__(self, realm='API'):
         self.realm = realm
@@ -44,14 +45,8 @@ class TwoLeggedOAuthAuthentication(Authentication):
         values in "Authorization" header, or as a GET request
         or in a POST body.
         """
-        logging.info("TwoLeggedOAuthAuthentication")
+        logging.info("OAuth20Authentication")
 
-        """
-        First, attempt to find the key in multiple ways:
-        as a GET parameter
-        as a POST parameter
-        or as a Authorization header
-        """
         try:
             key = request.GET.get('oauth_consumer_key')
             if not key:
@@ -60,22 +55,25 @@ class TwoLeggedOAuthAuthentication(Authentication):
                 auth_header_value = request.META.get('HTTP_AUTHORIZATION')
                 key = auth_header_value.split(' ')[1]
             if not key:
-                logging.error('TwoLeggedOAuthAuthentication. No consumer_key found.')
+                logging.error('OAuth20Authentication. No consumer_key found.')
                 return None
             """
             If verify_access_token() does not pass, it will raise an error
             """
-            verify_access_token(key)
+            token = verify_access_token(key)
 
-            # If OAuth authentication is successful, set oauth_consumer_key on request in case we need it later 
+            # If OAuth authentication is successful, set the request user to the token user for authorization
+            request.user = token.user
+
+            # If OAuth authentication is successful, set oauth_consumer_key on request in case we need it later
             request.META['oauth_consumer_key'] = key
             return True
         except KeyError, e:
-            logging.exception("Error in TwoLeggedOAuthAuthentication.")
+            logging.exception("Error in OAuth20Authentication.")
             request.user = AnonymousUser()
             return False
         except Exception, e:
-            logging.exception("Error in TwoLeggedOAuthAuthentication.")
+            logging.exception("Error in OAuth20Authentication.")
             return False
         return True
 
@@ -90,4 +88,5 @@ def verify_access_token(key):
     except AccessToken.DoesNotExist, e:
         raise OAuthError("AccessToken not found at all.")
 
-    logging.info('Valid access ')
+    logging.info('Valid access')
+    return token
