@@ -8,6 +8,7 @@ This nearly an exact copy of
 # Installation
 For now just use this for pip:
 * $ pip install git+https://github.com/radeinla/dngo-oauth2-tastypie.git#django-oauth2-tastypie
+
 Or put on requirements.txt:
 * -e git+https://github.com/radeinla/django-oauth2-tastypie.git#egg=django-oauth2-tastypie 
 
