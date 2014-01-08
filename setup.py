@@ -6,7 +6,7 @@ setup(
     package_dir={'': 'src'},
     py_modules=['authentication'],
     install_requires=[
-        "django-oauth-tastypie",
+        "django-tastypie",
         "django-oauth2-provider",
     ]
 )
