@@ -6,7 +6,10 @@ This nearly an exact copy of
 [/amrox/django-tastypie-two-legged-oauth](https://github.com/amrox/django-tastypie-two-legged-oauth), an OAuth2 (but not OAuth 2.0 spec!) connector for django-tastypie.
 
 # Installation
-See: 
+For now just use this for pip:
+* $ pip install git+https://github.com/radeinla/dngo-oauth2-tastypie.git#django-oauth2-tastypie
+Or put on requirements.txt:
+* -e git+https://github.com/radeinla/django-oauth2-tastypie.git#egg=django-oauth2-tastypie 
 
 # Dependencies: 
 * [django tastypie](https://github.com/toastdriven/django-tastypie)
