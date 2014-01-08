@@ -13,7 +13,7 @@ $ pip install git+https://github.com/radeinla/dngo-oauth2-tastypie.git#django-oa
 
 Or put on requirements.txt:
 ```
-* -e git+https://github.com/radeinla/django-oauth2-tastypie.git#egg=django-oauth2-tastypie 
+-e git+https://github.com/radeinla/django-oauth2-tastypie.git#egg=django-oauth2-tastypie 
 ```
 
 # Dependencies: 
